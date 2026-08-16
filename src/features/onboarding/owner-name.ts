@@ -5,3 +5,7 @@ export function normalizeOwnerName(input: string): string | null {
   const normalized = input.trim().replace(/\s+/g, ' ').slice(0, MAX_OWNER_NAME_LENGTH).trim();
   return normalized || null;
 }
+
+export function needsOwnerName(value: string | null): boolean {
+  return normalizeOwnerName(value ?? '') === null;
+}

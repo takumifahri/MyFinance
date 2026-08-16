@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
-import { useMemo, type ComponentProps, type ReactNode } from 'react';
+import { useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,6 +14,7 @@ import {
 } from '@/src/db/queries/transactions';
 import { formatDate, monthPeriod } from '@/src/utils/date';
 import { formatMoney, formatSignedMoney } from '@/src/utils/money';
+import { useOwnerName } from '@/src/features/onboarding/startup-flow';
 
 type TransactionIcon = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -52,16 +53,18 @@ function QuickAction({
   icon,
   label,
   color,
+  onPress,
 }: {
   icon: ComponentProps<typeof Ionicons>['name'];
   label: string;
   color: string;
+  onPress: () => void;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={() => router.push('/transactions')}
+      onPress={onPress}
       style={({ pressed }) => [styles.quickItem, pressed && styles.pressed]}>
       <View style={[styles.quickIcon, { backgroundColor: `${color}18` }]}>
         <Ionicons name={icon} size={21} color={color} />
@@ -97,6 +100,8 @@ function FlowMetric({
 }
 
 export default function DashboardScreen() {
+  const ownerName = useOwnerName();
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const now = useMemo(() => new Date(), []);
   const period = useMemo(() => monthPeriod(now), [now]);
   const previousPeriod = useMemo(() => previousMonthPeriod(now), [now]);
@@ -131,8 +136,8 @@ export default function DashboardScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Selamat datang,</Text>
-            <Text style={styles.name}>Keuanganku</Text>
+            <Text style={styles.greeting}>{greetingFor(now)},</Text>
+            <Text style={styles.name}>{ownerName}</Text>
           </View>
           <View style={styles.headerActions}>
             <Pressable accessibilityRole="button" accessibilityLabel="Pengaturan" onPress={() => router.push('/settings')} style={styles.roundButton}>
@@ -147,14 +152,22 @@ export default function DashboardScreen() {
         <View style={styles.hero}>
           <View style={styles.between}>
             <Text style={styles.heroLabel}>TOTAL SALDO · {accounts.length} AKUN</Text>
-            <Ionicons name="eye-outline" color="#b8d3c7" size={19} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={balanceVisible ? 'Sembunyikan saldo' : 'Tampilkan saldo'}
+              accessibilityValue={{ text: balanceVisible ? 'Saldo terlihat' : 'Saldo tersembunyi' }}
+              hitSlop={10}
+              onPress={() => setBalanceVisible((visible) => !visible)}
+              style={({ pressed }) => pressed && styles.eyePressed}>
+              <Ionicons name={balanceVisible ? 'eye-outline' : 'eye-off-outline'} color="#b8d3c7" size={20} />
+            </Pressable>
           </View>
-          <Text style={styles.balance}>{formatMoney(totalBalance)}</Text>
+          <Text style={styles.balance}>{balanceVisible ? formatMoney(totalBalance) : 'Rp •••••••'}</Text>
           <View style={styles.heroFooter}>
             <View>
               <Text style={styles.heroMeta}>Arus bersih bulan ini</Text>
               <Text style={[styles.heroTrend, net < 0 && styles.heroTrendNegative]}>
-                {formatSignedMoney(Math.abs(net), net >= 0 ? 'in' : 'out')}
+                {balanceVisible ? formatSignedMoney(Math.abs(net), net >= 0 ? 'in' : 'out') : '•••••••'}
               </Text>
             </View>
             <View style={styles.spark} accessibilityLabel="Tren arus kas tujuh hari transaksi terakhir">
@@ -166,10 +179,10 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.quickRow}>
-          <QuickAction icon="arrow-down" label="Pemasukan" color="#477e63" />
-          <QuickAction icon="arrow-up" label="Pengeluaran" color="#cc705e" />
-          <QuickAction icon="swap-horizontal" label="Transfer" color="#5f70a8" />
-          <QuickAction icon="ellipsis-horizontal" label="Lainnya" color="#6a706d" />
+          <QuickAction icon="arrow-down" label="Pemasukan" color="#477e63" onPress={() => router.push({ pathname: '/transaction/new', params: { type: 'income' } })} />
+          <QuickAction icon="arrow-up" label="Pengeluaran" color="#cc705e" onPress={() => router.push({ pathname: '/transaction/new', params: { type: 'expense' } })} />
+          <QuickAction icon="swap-horizontal" label="Transfer" color="#5f70a8" onPress={() => router.push('/transactions')} />
+          <QuickAction icon="ellipsis-horizontal" label="Lainnya" color="#6a706d" onPress={() => router.push('/settings')} />
         </View>
 
         {queryError ? <Text style={styles.errorText}>Sebagian ringkasan belum dapat dimuat: {queryError.message}</Text> : null}
@@ -223,6 +236,14 @@ export default function DashboardScreen() {
   );
 }
 
+function greetingFor(date: Date) {
+  const hour = date.getHours();
+  if (hour < 11) return 'Selamat pagi';
+  if (hour < 15) return 'Selamat siang';
+  if (hour < 19) return 'Selamat sore';
+  return 'Selamat malam';
+}
+
 function EmptyState({ icon, text }: { icon: ComponentProps<typeof Ionicons>['name']; text: string }) {
   return <View style={styles.empty}><Ionicons name={icon} size={24} color="#9ba49e" /><Text style={styles.emptyText}>{text}</Text></View>;
 }
@@ -249,6 +270,7 @@ const styles = StyleSheet.create({
   quickRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22 },
   quickItem: { width: '24%', alignItems: 'center' },
   pressed: { opacity: 0.65, transform: [{ scale: 0.97 }] },
+  eyePressed: { opacity: 0.55, transform: [{ scale: 0.92 }] },
   quickIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   quickLabel: { color: '#505750', fontSize: 10, fontWeight: '600', marginTop: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 27, marginBottom: 13 },

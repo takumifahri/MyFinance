@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { FinanceScreen, ListRow, SectionTitle, financeStyles } from '@/src/components/finance-screen';
@@ -8,7 +9,7 @@ export default function SettingsScreen() {
     <FinanceScreen title="Pengaturan" subtitle="Preferensi dan keamanan data lokal">
       <SectionTitle title="Personalisasi" />
       <View style={financeStyles.card}>
-        <ListRow icon="shape-outline" color="#a66a9d" title="Kategori" meta="Kelola kategori pemasukan & pengeluaran" />
+        <ListRow icon="shape-outline" color="#a66a9d" title="Kategori" meta="Kelola kategori pemasukan & pengeluaran" onPress={() => router.push('/categories')} />
         <ListRow icon="theme-light-dark" color="#5677a7" title="Tampilan" meta="Ikuti sistem" />
         <ListRow icon="currency-usd" color="#4f8b69" title="Mata uang" meta="IDR · Rupiah Indonesia" />
       </View>

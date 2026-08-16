@@ -98,22 +98,22 @@ export async function createTransaction(input: CreateTransactionInput): Promise<
     throw new Error('Nominal harus bilangan bulat lebih besar dari 0.');
   }
 
-  return db.transaction(async (tx) => {
-    await assertCategoryMatches(tx, input.categoryId, input.type);
-    const [row] = await tx
-      .insert(transactions)
-      .values({
-        accountId: input.accountId,
-        categoryId: input.categoryId ?? null,
-        type: input.type,
-        amount: input.amount,
-        note: input.note?.trim() || null,
-        date: input.date,
-        dateKey: toDateKey(input.date),
-      })
-      .returning();
-    return row;
-  });
+  // Satu insert tidak memerlukan transaction wrapper. Adapter Drizzle Expo memakai
+  // transaksi sinkron, jadi callback async justru dapat commit sebelum await selesai.
+  await assertCategoryMatches(db, input.categoryId, input.type);
+  const [row] = await db
+    .insert(transactions)
+    .values({
+      accountId: input.accountId,
+      categoryId: input.categoryId ?? null,
+      type: input.type,
+      amount: input.amount,
+      note: input.note?.trim() || null,
+      date: input.date,
+      dateKey: toDateKey(input.date),
+    })
+    .returning();
+  return row;
 }
 
 export async function updateTransaction(

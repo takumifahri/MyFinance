@@ -1,25 +1,84 @@
-import { Text, View } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { router } from 'expo-router';
+import { useState, type ComponentProps } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { FinanceScreen, ListRow, SearchBox, SectionTitle, financeStyles } from '@/src/components/finance-screen';
+import { FinanceScreen, ListRow, SectionTitle, financeStyles } from '@/src/components/finance-screen';
+import { transactionsQuery } from '@/src/db/queries/transactions';
+import { formatDate } from '@/src/utils/date';
+import { formatSignedMoney } from '@/src/utils/money';
+
+type Filter = 'all' | 'income' | 'expense';
+type RowIcon = ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+const ICONS: Record<string, RowIcon> = {
+  income: 'cash-plus',
+  expense: 'receipt-text-outline',
+  transfer_in: 'swap-horizontal',
+  transfer_out: 'swap-horizontal',
+};
 
 export default function TransactionsScreen() {
+  const [filter, setFilter] = useState<Filter>('all');
+  const types = filter === 'all' ? undefined : [filter] as const;
+  const query = useLiveQuery(transactionsQuery({ types }), [filter]);
+  const rows = query.data ?? [];
+
   return (
-    <FinanceScreen title="Transaksi" subtitle="Semua arus uangmu, tanpa yang terlewat" action="add">
-      <SearchBox label="Cari catatan atau kategori" />
+    <FinanceScreen
+      title="Transaksi"
+      subtitle={`${rows.length} catatan tersimpan di perangkat`}
+      action="add"
+      onAction={() => router.push('/transaction/new')}>
       <View style={financeStyles.pillRow}>
-        {['Semua', 'Pemasukan', 'Pengeluaran'].map((label, index) => <View key={label} style={[financeStyles.pill, index === 0 && financeStyles.pillActive]}><Text style={[financeStyles.pillText, index === 0 && financeStyles.pillTextActive]}>{label}</Text></View>)}
+        {([
+          ['all', 'Semua'],
+          ['income', 'Pemasukan'],
+          ['expense', 'Pengeluaran'],
+        ] as const).map(([value, label]) => (
+          <Pressable key={value} onPress={() => setFilter(value)} style={[financeStyles.pill, filter === value && financeStyles.pillActive]}>
+            <Text style={[financeStyles.pillText, filter === value && financeStyles.pillTextActive]}>{label}</Text>
+          </Pressable>
+        ))}
       </View>
-      <SectionTitle title="Hari ini" action="16 Agustus" />
+
+      <SectionTitle title="Riwayat" action={rows.length ? 'Terbaru dulu' : undefined} />
       <View style={financeStyles.card}>
-        <ListRow icon="food-outline" color="#ed9b4b" title="Makan siang" meta="Makan · GoPay · 12:43" value="-Rp42.000" />
-        <ListRow icon="car-outline" color="#7188cc" title="Transport" meta="Transport · BCA · 08:15" value="-Rp28.500" />
+        {rows.length ? rows.map((item) => {
+          const incoming = item.type === 'income' || item.type === 'transfer_in';
+          const color = item.categoryColor ?? (incoming ? '#4c9670' : '#7188cc');
+          return (
+            <ListRow
+              key={item.id}
+              icon={ICONS[item.type] ?? 'receipt-text-outline'}
+              color={color}
+              title={item.note || item.categoryName || 'Transfer akun'}
+              meta={`${item.accountName} · ${formatDate(item.date)}`}
+              value={formatSignedMoney(item.amount, incoming ? 'in' : 'out')}
+              positive={incoming}
+            />
+          );
+        }) : (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}><Ionicons name="receipt-outline" size={28} color="#77867d" /></View>
+            <Text style={styles.emptyTitle}>Belum ada transaksi</Text>
+            <Text style={styles.emptyCopy}>Catat pemasukan atau pengeluaran pertamamu.</Text>
+            <Pressable onPress={() => router.push('/transaction/new')} style={styles.emptyButton}><Ionicons name="add" size={17} color="#fff" /><Text style={styles.emptyButtonText}>Tambah transaksi</Text></Pressable>
+          </View>
+        )}
       </View>
-      <SectionTitle title="Kemarin" action="15 Agustus" />
-      <View style={financeStyles.card}>
-        <ListRow icon="cash-plus" color="#4c9670" title="Gaji Agustus" meta="Gaji · BCA" value="+Rp8.500.000" positive />
-        <ListRow icon="cart-outline" color="#ca7188" title="Belanja mingguan" meta="Belanja · BCA" value="-Rp286.000" />
-        <ListRow icon="swap-horizontal" color="#6282a8" title="Isi saldo GoPay" meta="Transfer · BCA → GoPay" value="Rp300.000" />
-      </View>
+      {query.error ? <Text style={styles.error}>Riwayat belum dapat dimuat: {query.error.message}</Text> : null}
     </FinanceScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  empty: { minHeight: 250, padding: 28, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: { width: 60, height: 60, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8eee7' },
+  emptyTitle: { color: '#303a34', fontSize: 16, fontWeight: '700', marginTop: 16 },
+  emptyCopy: { color: '#87908a', fontSize: 10, marginTop: 6, textAlign: 'center' },
+  emptyButton: { height: 42, marginTop: 18, paddingHorizontal: 15, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#31584c' },
+  emptyButtonText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  error: { color: '#ad5444', fontSize: 10, marginTop: 12 },
+});

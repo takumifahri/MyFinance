@@ -7,6 +7,7 @@ export const SETTING_KEYS = {
   currency: 'currency',
   currencyMinorUnits: 'currencyMinorUnits',
   theme: 'theme',
+  ownerName: 'ownerName',
   firstRunAt: 'firstRunAt',
   lastBackupAt: 'lastBackupAt',
   dataVersion: 'dataVersion',

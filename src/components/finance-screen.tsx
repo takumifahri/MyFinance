@@ -3,11 +3,11 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export function FinanceScreen({ title, subtitle, action, children }: { title: string; subtitle: string; action?: ComponentProps<typeof Ionicons>['name']; children: ReactNode }) {
+export function FinanceScreen({ title, subtitle, action, onAction, children }: { title: string; subtitle: string; action?: ComponentProps<typeof Ionicons>['name']; onAction?: () => void; children: ReactNode }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}><View><Text style={styles.title}>{title}</Text><Text style={styles.subtitle}>{subtitle}</Text></View>{action ? <Pressable style={styles.headerButton}><Ionicons name={action} size={21} color="#31584c" /></Pressable> : null}</View>
+        <View style={styles.header}><View><Text style={styles.title}>{title}</Text><Text style={styles.subtitle}>{subtitle}</Text></View>{action ? <Pressable accessibilityRole="button" accessibilityLabel={`Tambah ${title.toLowerCase()}`} onPress={onAction} style={styles.headerButton}><Ionicons name={action} size={21} color="#31584c" /></Pressable> : null}</View>
         {children}
       </ScrollView>
     </SafeAreaView>
@@ -22,8 +22,11 @@ export function SectionTitle({ title, action }: { title: string; action?: string
   return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{action ? <Text style={styles.sectionAction}>{action}</Text> : null}</View>;
 }
 
-export function ListRow({ icon, color, title, meta, value, positive = false }: { icon: ComponentProps<typeof MaterialCommunityIcons>['name']; color: string; title: string; meta: string; value?: string; positive?: boolean }) {
-  return <View style={styles.row}><View style={[styles.rowIcon, { backgroundColor: `${color}20` }]}><MaterialCommunityIcons name={icon} size={21} color={color}/></View><View style={{ flex: 1 }}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowMeta}>{meta}</Text></View>{value ? <Text style={[styles.rowValue, positive && styles.positive]}>{value}</Text> : <Ionicons name="chevron-forward" size={17} color="#a9afab"/>}</View>;
+export function ListRow({ icon, color, title, meta, value, positive = false, onPress }: { icon: ComponentProps<typeof MaterialCommunityIcons>['name']; color: string; title: string; meta: string; value?: string; positive?: boolean; onPress?: () => void }) {
+  const content = <><View style={[styles.rowIcon, { backgroundColor: `${color}20` }]}><MaterialCommunityIcons name={icon} size={21} color={color}/></View><View style={{ flex: 1 }}><Text style={styles.rowTitle}>{title}</Text><Text style={styles.rowMeta}>{meta}</Text></View>{value ? <Text style={[styles.rowValue, positive && styles.positive]}>{value}</Text> : <Ionicons name="chevron-forward" size={17} color="#a9afab"/>}</>;
+  return onPress
+    ? <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>{content}</Pressable>
+    : <View style={styles.row}>{content}</View>;
 }
 
 export function FloatingAdd() {
@@ -45,5 +48,6 @@ const styles = StyleSheet.create({
   search: { height: 50, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e7e9e5', gap: 10 }, searchText: { flex: 1, color: '#9ca29e', fontSize: 12 },
   section: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 25, marginBottom: 12 }, sectionTitle: { color: '#29302b', fontSize: 16, fontWeight: '700' }, sectionAction: { color: '#477461', fontSize: 11, fontWeight: '600' },
   row: { minHeight: 68, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e8eae6' }, rowIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, rowTitle: { color: '#292e2a', fontSize: 13, fontWeight: '700' }, rowMeta: { color: '#919792', fontSize: 10, marginTop: 4 }, rowValue: { color: '#333a35', fontSize: 12, fontWeight: '700' }, positive: { color: '#39805c' },
+  rowPressed: { opacity: 0.66, backgroundColor: '#f4f6f2' },
   fab: { position: 'absolute', right: 22, bottom: 22, width: 58, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#31584c', shadowColor: '#31584c', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
 });

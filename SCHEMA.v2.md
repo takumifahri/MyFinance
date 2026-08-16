@@ -114,6 +114,7 @@ Key–value. Key yang dipakai v1:
 | `currency` | `IDR` | mata uang tunggal app |
 | `currencyMinorUnits` | `0` | IDR = 0 desimal; USD = 2 |
 | `theme` | `system` \| `light` \| `dark` | |
+| `ownerName` | `Takumi` | nama panggilan lokal untuk personalisasi; bukan entitas User |
 | `firstRunAt` | ISO string | penanda seed sudah jalan |
 | `lastBackupAt` | ISO string | untuk pengingat backup di Pengaturan |
 | `dataVersion` | `1` | versi format data logis (≠ versi migrasi Drizzle) |

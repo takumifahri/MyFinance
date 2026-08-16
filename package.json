@@ -9,6 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "test": "node --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:local": "node scripts/make-local-db.mjs"

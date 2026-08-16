@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne, sql } from 'drizzle-orm';
 
 import { db, type DBOrTx } from '../client';
 import { categories, transactions, type Category, type CategoryType } from '../schema';
@@ -28,6 +28,24 @@ export type CreateCategoryInput = {
   icon?: string | null;
 };
 
+async function assertUniqueCategoryIdentity(
+  name: string,
+  type: CategoryType,
+  excludeId?: number,
+  tx: DBOrTx = db,
+) {
+  const [existing] = await tx
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(and(
+      eq(categories.type, type),
+      sql`lower(trim(${categories.name})) = lower(trim(${name}))`,
+      excludeId === undefined ? undefined : ne(categories.id, excludeId),
+    ))
+    .limit(1);
+  if (existing) throw new Error(`Kategori ${existing.name} sudah ada.`);
+}
+
 export async function createCategory(
   input: CreateCategoryInput,
   tx: DBOrTx = db,
@@ -35,6 +53,7 @@ export async function createCategory(
   const name = input.name.trim();
   if (!name) throw new Error('Nama kategori tidak boleh kosong.');
 
+  await assertUniqueCategoryIdentity(name, input.type, undefined, tx);
   const [row] = await tx
     .insert(categories)
     .values({ ...input, name })
@@ -49,6 +68,15 @@ export async function updateCategory(
 ): Promise<void> {
   const name = patch.name?.trim();
   if (patch.name !== undefined && !name) throw new Error('Nama kategori tidak boleh kosong.');
+
+  const current = await getCategory(id, tx);
+  if (!current) throw new Error('Kategori tidak ditemukan.');
+  await assertUniqueCategoryIdentity(
+    name ?? current.name,
+    patch.type ?? current.type,
+    id,
+    tx,
+  );
 
   await tx
     .update(categories)

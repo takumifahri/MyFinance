@@ -1,4 +1,4 @@
-import { asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne, sql } from 'drizzle-orm';
 
 import { db, type DBOrTx } from '../client';
 import { accounts, transactions, type Account, type AccountType } from '../schema';
@@ -67,6 +67,27 @@ export type CreateAccountInput = {
   sortOrder?: number;
 };
 
+async function assertUniqueAccountIdentity(
+  name: string,
+  type: AccountType,
+  excludeId?: number,
+  tx: DBOrTx = db,
+) {
+  const identity = and(
+    eq(accounts.type, type),
+    sql`lower(trim(${accounts.name})) = lower(trim(${name}))`,
+    excludeId === undefined ? undefined : ne(accounts.id, excludeId),
+  );
+  const [existing] = await tx
+    .select({ id: accounts.id, name: accounts.name })
+    .from(accounts)
+    .where(identity)
+    .limit(1);
+  if (existing) {
+    throw new Error(`Akun ${existing.name} sudah ada. Tambahkan saldo ke akun tersebut.`);
+  }
+}
+
 export async function createAccount(input: CreateAccountInput, tx: DBOrTx = db): Promise<Account> {
   const name = input.name.trim();
   if (!name) throw new Error('Nama akun tidak boleh kosong.');
@@ -74,6 +95,7 @@ export async function createAccount(input: CreateAccountInput, tx: DBOrTx = db):
     throw new Error('Saldo awal harus bilangan bulat (satuan terkecil).');
   }
 
+  await assertUniqueAccountIdentity(name, input.type, undefined, tx);
   const [row] = await tx.insert(accounts).values({ ...input, name }).returning();
   return row;
 }
@@ -85,6 +107,18 @@ export async function updateAccount(
 ): Promise<void> {
   const name = patch.name?.trim();
   if (patch.name !== undefined && !name) throw new Error('Nama akun tidak boleh kosong.');
+  if (patch.initialBalance !== undefined && !Number.isInteger(patch.initialBalance)) {
+    throw new Error('Saldo awal harus bilangan bulat (satuan terkecil).');
+  }
+
+  const current = await getAccount(id, tx);
+  if (!current) throw new Error('Akun tidak ditemukan.');
+  await assertUniqueAccountIdentity(
+    name ?? current.name,
+    patch.type ?? current.type,
+    id,
+    tx,
+  );
 
   await tx
     .update(accounts)

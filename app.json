@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -19,7 +20,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.takumifahri.keuanganmobile"
     },
     "web": {
       "output": "static",
@@ -30,12 +32,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#31584c",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#31584c"
           }
         }
       ],
@@ -44,6 +44,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e75abe9f-c973-471e-a5da-711e4aac44ff"
+      }
     }
   }
 }

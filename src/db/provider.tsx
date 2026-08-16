@@ -1,4 +1,5 @@
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
+import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 
@@ -71,6 +72,10 @@ function Loading() {
 }
 
 function Failure({ title, error }: { title: string; error: Error }) {
+  useEffect(() => {
+    if (Platform.OS !== 'web') SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
+
   return (
     <View style={styles.center}>
       <Text style={styles.title}>{title}</Text>

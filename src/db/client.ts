@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/expo-sqlite';
-import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
+import { deleteDatabaseAsync, openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 
 import * as schema from './schema';
 
@@ -61,6 +61,26 @@ export function getDb(): DB {
 export function getClient(): SQLiteDatabase {
   if (!client) throw new Error('Database belum siap.');
   return client;
+}
+
+/**
+ * "migrate:fresh" — menghapus file database beserta riwayat migrasinya.
+ *
+ * Sengaja membuang FILE-nya, bukan DROP TABLE satu per satu: tabel
+ * `__drizzle_migrations` ikut lenyap, jadi saat app dibuka lagi seluruh migrasi
+ * dijalankan dari nol dan `seedIfNeeded()` mengisi data awal (karena
+ * settings.firstRunAt ikut hilang). DROP TABLE manual menyisakan riwayat
+ * migrasi, sehingga migrasi TIDAK diulang dan skema jadi kosong permanen.
+ *
+ * MENGHAPUS SEMUA DATA. Pemanggil WAJIB memuat ulang app setelah ini —
+ * modul ini tidak membuka koneksi baru; state di memori harus ikut dibuang.
+ */
+export async function resetDatabase(): Promise<void> {
+  if (client) await client.closeAsync();
+  client = null;
+  instance = null;
+  pending = null;
+  await deleteDatabaseAsync(DATABASE_NAME);
 }
 
 /**

@@ -1,8 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, DevSettings, StyleSheet, Text, View } from 'react-native';
 
 import { FinanceScreen, ListRow, SectionTitle, financeStyles } from '@/src/components/finance-screen';
+import { resetDatabase } from '@/src/db/client';
+
+/**
+ * Hanya ada di build dev. DevSettings.reload() memang tidak tersedia di produksi,
+ * dan menghapus seluruh data pengguna tanpa backup bukan fitur yang pantas dirilis.
+ */
+function confirmFreshMigrate() {
+  Alert.alert(
+    'Migrate fresh?',
+    'Semua akun, kategori, dan transaksi dihapus. Database dibuat ulang dari migrasi terbaru lalu diisi data bawaan. Tidak bisa dibatalkan.',
+    [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Hapus & buat ulang',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await resetDatabase();
+            DevSettings.reload();
+          } catch (error) {
+            Alert.alert('Gagal reset', error instanceof Error ? error.message : String(error));
+          }
+        },
+      },
+    ],
+  );
+}
 
 export default function SettingsScreen() {
   return (
@@ -24,6 +51,20 @@ export default function SettingsScreen() {
         <ListRow icon="file-import-outline" color="#557ca2" title="Pulihkan backup" meta="Timpa data dari file JSON" />
         <ListRow icon="information-outline" color="#7b817d" title="Tentang Keuanganku" meta="Versi 1.0 · Local-first" />
       </View>
+      {__DEV__ ? (
+        <>
+          <SectionTitle title="Developer" />
+          <View style={financeStyles.card}>
+            <ListRow
+              icon="database-refresh"
+              color="#b35f50"
+              title="Migrate fresh"
+              meta="Hapus database, jalankan ulang migrasi + seed"
+              onPress={confirmFreshMigrate}
+            />
+          </View>
+        </>
+      ) : null}
       <View style={{ height: 100 }} >
         <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>© 2026 Keuanganku by Link Github Takumifahri</Text>
       </View>

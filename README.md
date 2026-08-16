@@ -1,50 +1,58 @@
-# Welcome to your Expo app 👋
+# FinTrack — `keuangan-mobile`
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplikasi manajemen keuangan pribadi berbasis mobile. **Local-first**: semua data disimpan di perangkat (SQLite), tanpa server, tanpa akun online, jalan offline.
 
-## Get started
+> Working title "FinTrack" — silakan ganti.
 
-1. Install dependencies
+## Fitur (v1)
+- Kelola akun (kas, bank, e-wallet) & kategori.
+- Catat pemasukan/pengeluaran, filter & telusuri transaksi.
+- Dashboard ringkasan + grafik.
+- Backup/export & import data (file JSON).
 
-   ```bash
-   npm install
-   ```
+## Stack
+- Expo (React Native) + TypeScript — SDK 54
+- Expo Router (navigasi)
+- expo-sqlite + Drizzle ORM (data lokal)
+- react-native-gifted-charts (grafik)
 
-2. Start the app
+## Prasyarat
+- Node.js (disarankan lewat version manager seperti **fnm**; hindari npm 12 yang bikin `create-expo-app` error — pakai npm 10/11).
+- Aplikasi **Expo Go** di HP (dari Play Store / App Store).
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+## Setup
 ```bash
-npm run reset-project
+# install dependency
+npm install
+
+# generate migrasi DB (hanya perlu diulang tiap src/db/schema.ts berubah)
+npm run db:generate
+
+# jalankan
+npx expo start
 ```
+Migrasi diterapkan otomatis saat app start lewat `DatabaseProvider` (`src/db/provider.tsx`),
+dilanjutkan seed kategori & akun default pada instalasi baru.
+Lalu scan QR dengan Expo Go — app jalan di HP dengan hot reload.
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Script
+| Perintah | Fungsi |
+|----------|--------|
+| `npx expo start` | Jalankan dev server |
+| `npm run db:generate` | Generate migrasi dari `src/db/schema.ts` |
+| `npm run typecheck` | Cek TypeScript tanpa emit |
+| `eas build -p android --profile preview` | Build APK (butuh akun Expo) |
 
-## Learn more
+## Struktur Project
+Ringkas: rute di `app/` (Expo Router), data & query di `src/db/`, komponen di `src/components/`, util di `src/utils/`. Detail di **`ARCHITECTURE.md`**.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Dokumentasi
+- **`PRD.md`** — kebutuhan produk, cakupan, fitur.
+- **`SCHEMA.md`** — model data & skema Drizzle.
+- **`ARCHITECTURE.md`** — struktur, data layer, migrasi, keputusan teknis.
+- **`ROADMAP.md`** — milestone bertahap.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Catatan
+- Nominal uang disimpan sebagai **integer** (satuan terkecil), bukan float.
+- Data hanya ada di perangkat — **gunakan fitur backup** agar tidak hilang saat ganti/uninstall HP.
+- Backend (NestJS) **tidak** bagian dari project ini; dipelajari terpisah.

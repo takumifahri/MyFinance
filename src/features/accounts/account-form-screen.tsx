@@ -28,18 +28,14 @@ import type { AccountType } from '@/src/db/schema';
 import { ACCOUNT_NAME_OPTIONS } from '@/src/features/accounts/account-catalog';
 import { isSameAccount } from '@/src/features/accounts/account-identity';
 import { AccountNamePicker } from '@/src/features/accounts/account-name-picker';
+import { accountIcon } from '@/src/features/accounts/account-presentation';
 import { formatAmountInput } from '@/src/features/transactions/transaction-draft';
-import { parseMoney } from '@/src/utils/money';
+import { formatMoney, parseMoney } from '@/src/utils/money';
 
-const ACCOUNT_TYPES: {
-  value: AccountType;
-  label: string;
-  description: string;
-  icon: 'cash-outline' | 'business-outline' | 'phone-portrait-outline';
-}[] = [
-  { value: 'cash', label: 'Tunai', description: 'Dompet dan uang kas', icon: 'cash-outline' },
-  { value: 'bank', label: 'Bank', description: 'Rekening bank', icon: 'business-outline' },
-  { value: 'ewallet', label: 'E-wallet', description: 'Dompet digital', icon: 'phone-portrait-outline' },
+const ACCOUNT_TYPES: { value: AccountType; label: string; description: string }[] = [
+  { value: 'cash', label: 'Tunai', description: 'Dompet dan uang kas' },
+  { value: 'bank', label: 'Bank', description: 'Rekening bank' },
+  { value: 'ewallet', label: 'E-wallet', description: 'Dompet digital' },
 ];
 
 export function AccountFormScreen({ accountId }: { accountId?: number }) {
@@ -182,6 +178,20 @@ function AccountForm({ account, accounts }: {
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
+          {account ? (
+            <View style={styles.balanceCard}>
+              <View style={styles.balanceIcon}>
+                <Ionicons name={accountIcon(account.type)} size={20} color="#31584c" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.balanceCardLabel}>SALDO BERJALAN</Text>
+                <Text style={[styles.balanceCardValue, Number(account.balance) < 0 && styles.balanceCardNegative]}>
+                  {formatMoney(Number(account.balance ?? 0))}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
           <Text style={styles.label}>JENIS AKUN</Text>
           <View style={styles.typeList}>
             {ACCOUNT_TYPES.map((item) => {
@@ -192,7 +202,7 @@ function AccountForm({ account, accounts }: {
                   onPress={() => changeType(item.value)}
                   style={[styles.typeOption, selected && styles.typeOptionSelected]}>
                   <View style={[styles.typeIcon, selected && styles.typeIconSelected]}>
-                    <Ionicons name={item.icon} size={21} color={selected ? '#31584c' : '#818b85'} />
+                    <Ionicons name={accountIcon(item.value)} size={21} color={selected ? '#31584c' : '#818b85'} />
                   </View>
                   <View style={styles.typeCopy}>
                     <Text style={[styles.typeLabel, selected && styles.typeLabelSelected]}>{item.label}</Text>
@@ -317,6 +327,11 @@ const styles = StyleSheet.create({
   customInput: { marginTop: 9 },
   duplicateNotice: { marginTop: 10, padding: 12, borderRadius: 14, flexDirection: 'row', gap: 8, backgroundColor: '#f4ecdf' },
   duplicateText: { flex: 1, color: '#80623e', fontSize: 9, lineHeight: 14 },
+  balanceCard: { marginTop: 4, padding: 15, borderRadius: 18, backgroundColor: '#eaf0e9', flexDirection: 'row', alignItems: 'center', gap: 12 },
+  balanceIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#dbe7d7' },
+  balanceCardLabel: { color: '#6b786f', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  balanceCardValue: { color: '#26332c', fontSize: 20, fontWeight: '800', marginTop: 4 },
+  balanceCardNegative: { color: '#b35f50' },
   typeList: { gap: 9 },
   typeOption: { minHeight: 68, padding: 11, borderRadius: 18, borderWidth: 1, borderColor: '#e0e3df', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 12 },
   typeOptionSelected: { borderColor: '#6c9583', backgroundColor: '#edf3ec' },

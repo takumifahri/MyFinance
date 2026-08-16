@@ -12,12 +12,14 @@ import {
   spendingByCategoryQuery,
   transactionsQuery,
 } from '@/src/db/queries/transactions';
+import { categoryGlyph } from '@/src/features/categories/category-icons';
 import { formatDate, monthPeriod } from '@/src/utils/date';
 import { formatMoney, formatSignedMoney } from '@/src/utils/money';
 import { useOwnerName } from '@/src/features/onboarding/startup-flow';
 
 type TransactionIcon = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
+/** Dipakai untuk transfer dan transaksi tanpa kategori — sisanya pakai ikon kategori. */
 const TYPE_ICON: Record<string, TransactionIcon> = {
   income: 'cash-plus',
   expense: 'receipt-text-outline',
@@ -198,14 +200,24 @@ export default function DashboardScreen() {
         <View style={styles.categoryBox}>
           {topSpending.length ? topSpending.map((item) => {
             const total = Number(item.total);
+            const color = item.color ?? '#64748b';
             return (
               <View key={item.categoryId ?? item.categoryName} style={styles.spendingRow}>
                 <View style={styles.between}>
-                  <Text style={styles.spendLabel}>{item.categoryName}</Text>
+                  <View style={styles.inline}>
+                    <View style={[styles.spendIcon, { backgroundColor: `${color}1f` }]}>
+                      <MaterialCommunityIcons
+                        name={categoryGlyph({ icon: item.icon, name: item.categoryName, type: 'expense' })}
+                        size={14}
+                        color={color}
+                      />
+                    </View>
+                    <Text style={styles.spendLabel}>{item.categoryName}</Text>
+                  </View>
                   <Text style={styles.spendValue}>{compactMoney(total)}</Text>
                 </View>
                 <View style={styles.track}>
-                  <View style={[styles.fill, { width: `${Math.max(8, (total / largestSpending) * 100)}%`, backgroundColor: item.color ?? '#64748b' }]} />
+                  <View style={[styles.fill, { width: `${Math.max(8, (total / largestSpending) * 100)}%`, backgroundColor: color }]} />
                 </View>
               </View>
             );
@@ -217,10 +229,17 @@ export default function DashboardScreen() {
           {recent.length ? recent.map((item, index) => {
             const incoming = item.type === 'income' || item.type === 'transfer_in';
             const color = item.categoryColor ?? (incoming ? '#4c9670' : '#7188cc');
+            const glyph = item.categoryId
+              ? categoryGlyph({
+                  icon: item.categoryIcon,
+                  name: item.categoryName,
+                  type: incoming ? 'income' : 'expense',
+                })
+              : TYPE_ICON[item.type] ?? 'receipt-text-outline';
             return (
               <View key={item.id} style={[styles.transaction, index < recent.length - 1 && styles.transactionBorder]}>
                 <View style={[styles.txIcon, { backgroundColor: `${color}20` }]}>
-                  <MaterialCommunityIcons name={TYPE_ICON[item.type] ?? 'receipt-text-outline'} size={20} color={color} />
+                  <MaterialCommunityIcons name={glyph} size={20} color={color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.txName}>{item.note || item.categoryName || 'Transfer akun'}</Text>
@@ -285,6 +304,7 @@ const styles = StyleSheet.create({
   metricDelta: { fontSize: 9, fontWeight: '600', marginTop: 5 },
   categoryBox: { backgroundColor: '#fff', padding: 18, paddingBottom: 2, borderRadius: 20, borderWidth: 1, borderColor: '#ebebe5' },
   spendingRow: { marginBottom: 17 },
+  spendIcon: { width: 24, height: 24, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   spendLabel: { color: '#4d544e', fontSize: 12, fontWeight: '600' },
   spendValue: { color: '#4d544e', fontSize: 11, fontWeight: '700' },
   track: { height: 6, borderRadius: 4, backgroundColor: '#eeeee9', marginTop: 9, overflow: 'hidden' },

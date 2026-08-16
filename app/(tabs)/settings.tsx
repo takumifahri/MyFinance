@@ -24,6 +24,9 @@ export default function SettingsScreen() {
         <ListRow icon="file-import-outline" color="#557ca2" title="Pulihkan backup" meta="Timpa data dari file JSON" />
         <ListRow icon="information-outline" color="#7b817d" title="Tentang Keuanganku" meta="Versi 1.0 · Local-first" />
       </View>
+      <View style={{ height: 100 }} >
+        <Text style={{ color: '#fff', textAlign: 'center', marginTop: 20 }}>© 2026 Keuanganku by Link Github Takumifahri</Text>
+      </View>
     </FinanceScreen>
   );
 }

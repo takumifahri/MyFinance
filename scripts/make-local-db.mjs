@@ -31,19 +31,21 @@ for (const file of readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).
 
 // Seed identik dengan src/db/seed.ts
 const categories = [
-  ['Makan & Minum', 'expense', '#F97316'],
-  ['Transport', 'expense', '#0EA5E9'],
-  ['Belanja', 'expense', '#A855F7'],
-  ['Tagihan', 'expense', '#EF4444'],
-  ['Hiburan', 'expense', '#EC4899'],
-  ['Kesehatan', 'expense', '#14B8A6'],
-  ['Lainnya', 'expense', '#64748B'],
-  ['Gaji', 'income', '#22C55E'],
-  ['Bonus', 'income', '#84CC16'],
-  ['Lainnya', 'income', '#64748B'],
+  ['Makan & Minum', 'expense', '#F97316', 'makan'],
+  ['Transport', 'expense', '#0EA5E9', 'transport'],
+  ['Belanja', 'expense', '#A855F7', 'belanja'],
+  ['Tagihan', 'expense', '#EF4444', 'tagihan'],
+  ['Hiburan', 'expense', '#EC4899', 'hiburan'],
+  ['Kesehatan', 'expense', '#14B8A6', 'kesehatan'],
+  ['Lainnya', 'expense', '#64748B', 'lainnya'],
+  ['Gaji', 'income', '#22C55E', 'gaji'],
+  ['Bonus', 'income', '#84CC16', 'bonus'],
+  ['Lainnya', 'income', '#64748B', 'lainnya'],
 ];
 
-const insertCategory = db.prepare('INSERT INTO categories (name,type,color,is_default) VALUES (?,?,?,1)');
+const insertCategory = db.prepare(
+  'INSERT INTO categories (name,type,color,icon,is_default) VALUES (?,?,?,?,1)',
+);
 for (const category of categories) insertCategory.run(...category);
 
 db.exec("INSERT INTO accounts (name,type,initial_balance) VALUES ('Dompet','cash',0)");

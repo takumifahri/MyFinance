@@ -1,9 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,9 +18,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { accountsWithBalanceQuery } from '@/src/db/queries/accounts';
 import { categoriesQuery } from '@/src/db/queries/categories';
-import { createTransaction } from '@/src/db/queries/transactions';
+import {
+  createTransaction,
+  expenseBaselineQuery,
+  periodSummaryQuery,
+} from '@/src/db/queries/transactions';
+import { accountIcon } from '@/src/features/accounts/account-presentation';
+import { categoryGlyph } from '@/src/features/categories/category-icons';
+import { evaluateSpendingAlert } from '@/src/features/transactions/spending-alert';
 import { formatAmountInput, prepareTransactionDraft } from '@/src/features/transactions/transaction-draft';
-import { formatDate } from '@/src/utils/date';
+import { formatDate, lastDaysPeriod, monthPeriod } from '@/src/utils/date';
+import { formatMoney, parseMoney } from '@/src/utils/money';
 
 export default function NewTransactionScreen() {
   const params = useLocalSearchParams<{ type?: string }>();
@@ -37,6 +46,16 @@ export default function NewTransactionScreen() {
   const categoriesResult = useLiveQuery(categoriesQuery(type), [type]);
   const accounts = accountsResult.data ?? [];
   const categories = categoriesResult.data ?? [];
+
+  // Bahan peringatan boros. Dibaca reaktif supaya angkanya sudah siap saat
+  // tombol simpan ditekan — pengecekan tidak boleh menambah jeda.
+  const month = useState(() => monthPeriod(new Date()))[0];
+  const baselineWindow = useState(() => lastDaysPeriod(30))[0];
+  const monthSummary = useLiveQuery(periodSummaryQuery(month), [month.from, month.to]).data?.[0];
+  const baseline = useLiveQuery(expenseBaselineQuery(baselineWindow), [
+    baselineWindow.from,
+    baselineWindow.to,
+  ]).data?.[0];
 
   useEffect(() => {
     const firstAccount = accountsResult.data?.[0];
@@ -59,10 +78,40 @@ export default function NewTransactionScreen() {
       return;
     }
 
+    const alert = type === 'expense' ? spendingAlertFor(prepared.value.amount) : null;
+    if (alert) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(alert.title, alert.message, [
+        { text: 'Ubah dulu', style: 'cancel' },
+        { text: 'Tetap simpan', style: 'destructive', onPress: () => save(prepared.value) },
+      ]);
+      return;
+    }
+
+    await save(prepared.value);
+  }
+
+  /** Bahan peringatan yang belum siap dianggap nol — lebih baik diam daripada salah tuduh. */
+  function spendingAlertFor(amount: number) {
+    const account = accounts.find((item) => item.id === accountId);
+    if (!account) return null;
+
+    return evaluateSpendingAlert({
+      amount,
+      accountName: account.name,
+      accountBalance: Number(account.balance ?? 0),
+      monthIncome: Number(monthSummary?.income ?? 0),
+      monthExpense: Number(monthSummary?.expense ?? 0),
+      baselineTotal: Number(baseline?.total ?? 0),
+      baselineDays: Number(baseline?.days ?? 0),
+    });
+  }
+
+  async function save(value: Parameters<typeof createTransaction>[0]) {
     setSubmitting(true);
     setError(null);
     try {
-      await createTransaction(prepared.value);
+      await createTransaction(value);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (submitError) {
@@ -72,6 +121,14 @@ export default function NewTransactionScreen() {
   }
 
   const accent = type === 'income' ? '#477e63' : '#cc705e';
+
+  // Pratinjau efek ke akun yang dipilih. Dihitung di layar dari saldo hasil
+  // useLiveQuery, jadi angkanya sama persis dengan yang tersimpan setelah simpan.
+  const selectedAccount = accounts.find((account) => account.id === accountId) ?? null;
+  const pendingAmount = parseMoney(amountText) ?? 0;
+  const currentBalance = Number(selectedAccount?.balance ?? 0);
+  const projectedBalance = currentBalance + (type === 'income' ? pendingAmount : -pendingAmount);
+  const overdrawn = type === 'expense' && pendingAmount > 0 && projectedBalance < 0;
 
   function revealBottomField() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180);
@@ -124,13 +181,40 @@ export default function NewTransactionScreen() {
 
           <FieldLabel icon="wallet-outline" text="Pilih akun" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choiceRow}>
-            {accounts.map((account) => (
-              <Pressable key={account.id} onPress={() => setAccountId(account.id)} style={[styles.choicePill, accountId === account.id && { borderColor: accent, backgroundColor: `${accent}12` }]}>
-                <Ionicons name={account.type === 'cash' ? 'cash-outline' : account.type === 'bank' ? 'business-outline' : 'phone-portrait-outline'} size={17} color={accountId === account.id ? accent : '#77817b'} />
-                <Text style={[styles.choiceText, accountId === account.id && { color: accent }]}>{account.name}</Text>
-              </Pressable>
-            ))}
+            {accounts.map((account) => {
+              const selected = accountId === account.id;
+              const balance = Number(account.balance ?? 0);
+              return (
+                <Pressable
+                  key={account.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                  // Nominal hanya muncul di kartu akun terpilih, tapi pembaca layar
+                  // tetap perlu tahu saldo tiap pilihan sebelum memilih.
+                  accessibilityLabel={`${account.name}, saldo ${formatMoney(balance)}`}
+                  onPress={() => setAccountId(account.id)}
+                  style={[styles.choicePill, selected && { borderColor: accent, backgroundColor: `${accent}12` }]}>
+                  <Ionicons name={accountIcon(account.type)} size={18} color={selected ? accent : '#77817b'} />
+                  <Text style={[styles.choiceText, selected && { color: accent }]}>{account.name}</Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
+
+          {selectedAccount ? (
+            <View style={styles.impactRow}>
+              <Text style={styles.impactLabel}>Saldo {selectedAccount.name}</Text>
+              <Text style={styles.impactCurrent}>{formatMoney(currentBalance)}</Text>
+              {pendingAmount > 0 ? (
+                <>
+                  <Ionicons name="arrow-forward" size={12} color="#9aa29c" />
+                  <Text style={[styles.impactNext, { color: overdrawn ? '#b85644' : accent }]}>
+                    {formatMoney(projectedBalance)}
+                  </Text>
+                </>
+              ) : null}
+            </View>
+          ) : null}
 
           <FieldLabel icon="pricetag-outline" text="Kategori" />
           <View style={styles.categoryGrid}>
@@ -138,8 +222,15 @@ export default function NewTransactionScreen() {
               const selected = categoryId === category.id;
               const color = category.color ?? accent;
               return (
-                <Pressable key={category.id} onPress={() => setCategoryId(category.id)} style={[styles.category, selected && { borderColor: color, backgroundColor: `${color}12` }]}>
-                  <View style={[styles.categoryDot, { backgroundColor: color }]} />
+                <Pressable
+                  key={category.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                  onPress={() => setCategoryId(category.id)}
+                  style={[styles.category, selected && { borderColor: color, backgroundColor: `${color}12` }]}>
+                  <View style={[styles.categoryIcon, { backgroundColor: `${color}1f` }]}>
+                    <MaterialCommunityIcons name={categoryGlyph(category)} size={17} color={color} />
+                  </View>
                   <Text numberOfLines={1} style={[styles.categoryText, selected && { color }]}>{category.name}</Text>
                 </Pressable>
               );
@@ -190,7 +281,11 @@ const styles = StyleSheet.create({
   currency: { fontSize: 20, fontWeight: '700', marginRight: 6 }, amountInput: { color: '#26312b', fontSize: 38, fontWeight: '800', letterSpacing: -1.5, minWidth: 100, maxWidth: 260, paddingVertical: 6 },
   fieldLabel: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 29, marginBottom: 11 }, fieldLabelText: { color: '#59645d', fontSize: 11, fontWeight: '700' },
   choiceRow: { gap: 9 }, choicePill: { height: 43, borderRadius: 15, borderWidth: 1, borderColor: '#dfe3de', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 13 }, choiceText: { color: '#69736d', fontSize: 11, fontWeight: '600' },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, category: { width: '48%', minHeight: 44, borderRadius: 14, borderWidth: 1, borderColor: '#e0e4df', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }, categoryDot: { width: 8, height: 8, borderRadius: 4 }, categoryText: { flex: 1, color: '#657069', fontSize: 10, fontWeight: '600' },
+  impactRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  impactLabel: { color: '#8a938c', fontSize: 10, marginRight: 2 },
+  impactCurrent: { color: '#4b544d', fontSize: 11, fontWeight: '700' },
+  impactNext: { fontSize: 11, fontWeight: '800' },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, category: { width: '48%', minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: '#e0e4df', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, paddingVertical: 7 }, categoryIcon: { width: 30, height: 30, borderRadius: 11, alignItems: 'center', justifyContent: 'center' }, categoryText: { flex: 1, color: '#657069', fontSize: 10, fontWeight: '600' },
   noteInput: { minHeight: 82, borderRadius: 17, borderWidth: 1, borderColor: '#dfe3de', backgroundColor: '#fff', color: '#303a34', fontSize: 12, lineHeight: 18, padding: 14 },
   error: { color: '#ad5444', fontSize: 10, marginTop: 10 },
   footer: { padding: 16, paddingBottom: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dde1dc', backgroundColor: '#f7f7f1' },

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -22,6 +22,13 @@ import {
   updateCategory,
 } from '@/src/db/queries/categories';
 import type { Category, CategoryType } from '@/src/db/schema';
+import {
+  CATEGORY_ICONS,
+  categoryGlyph,
+  guessCategoryIconKey,
+  isCategoryIconKey,
+  type CategoryIconKey,
+} from '@/src/features/categories/category-icons';
 
 const COLORS = [
   '#F97316',
@@ -59,6 +66,11 @@ function CategoryForm({ category, initialType }: { category?: Category; initialT
   const [name, setName] = useState(category?.name ?? '');
   const [type, setType] = useState<CategoryType>(category?.type ?? initialType);
   const [color, setColor] = useState(category?.color ?? COLORS[0]);
+  const [icon, setIcon] = useState<CategoryIconKey>(initialIconKey(category));
+  // Selama user belum memilih ikon sendiri, ikon mengikuti tebakan dari nama.
+  const [iconPickedManually, setIconPickedManually] = useState(
+    isCategoryIconKey(category?.icon),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,9 +85,9 @@ function CategoryForm({ category, initialType }: { category?: Category; initialT
     setError(null);
     try {
       if (category) {
-        await updateCategory(category.id, { name: cleanName, type, color });
+        await updateCategory(category.id, { name: cleanName, type, color, icon });
       } else {
-        await createCategory({ name: cleanName, type, color });
+        await createCategory({ name: cleanName, type, color, icon });
       }
       router.back();
     } catch (saveError) {
@@ -128,6 +140,10 @@ function CategoryForm({ category, initialType }: { category?: Category; initialT
             onChangeText={(value) => {
               setName(value);
               setError(null);
+              if (!iconPickedManually) {
+                const suggestion = guessCategoryIconKey(value);
+                if (suggestion) setIcon(suggestion);
+              }
             }}
             onSubmitEditing={save}
             placeholder="Contoh: Pendidikan, Peliharaan"
@@ -168,8 +184,38 @@ function CategoryForm({ category, initialType }: { category?: Category; initialT
             })}
           </View>
 
+          <Text style={styles.label}>IKON</Text>
+          <View style={styles.iconGrid}>
+            {CATEGORY_ICONS.map((item) => {
+              const selected = item.key === icon;
+              return (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`Pilih ikon ${item.label}`}
+                  accessibilityState={{ checked: selected }}
+                  onPress={() => {
+                    setIcon(item.key);
+                    setIconPickedManually(true);
+                  }}
+                  style={[
+                    styles.iconOption,
+                    selected && { borderColor: color, backgroundColor: `${color}1a` },
+                  ]}>
+                  <MaterialCommunityIcons
+                    name={item.glyph}
+                    size={21}
+                    color={selected ? color : '#7c857f'}
+                  />
+                </Pressable>
+              );
+            })}
+          </View>
+
           <View style={styles.preview}>
-            <View style={[styles.previewDot, { backgroundColor: color }]} />
+            <View style={[styles.previewIcon, { backgroundColor: `${color}1f` }]}>
+              <MaterialCommunityIcons name={categoryGlyph({ icon, name, type })} size={22} color={color} />
+            </View>
             <View>
               <Text style={styles.previewName}>{name.trim() || 'Nama kategori'}</Text>
               <Text style={styles.previewMeta}>{type === 'expense' ? 'Pengeluaran' : 'Pemasukan'}</Text>
@@ -193,6 +239,11 @@ function CategoryForm({ category, initialType }: { category?: Category; initialT
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function initialIconKey(category?: Category): CategoryIconKey {
+  if (isCategoryIconKey(category?.icon)) return category.icon;
+  return (category?.name ? guessCategoryIconKey(category.name) : null) ?? 'lainnya';
 }
 
 function LoadingCategory() {
@@ -226,8 +277,10 @@ const styles = StyleSheet.create({
   colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   colorOption: { width: 45, height: 45, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   colorSelected: { borderWidth: 3, borderColor: '#fff', outlineColor: '#6c7972', outlineWidth: 2 },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  iconOption: { width: 46, height: 46, borderRadius: 16, borderWidth: 1.5, borderColor: '#e0e4df', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   preview: { minHeight: 68, marginTop: 25, padding: 15, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e1e4df' },
-  previewDot: { width: 14, height: 14, borderRadius: 7 },
+  previewIcon: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   previewName: { color: '#2c332f', fontSize: 13, fontWeight: '700' },
   previewMeta: { color: '#929994', fontSize: 9, marginTop: 3 },
   error: { color: '#ad5444', fontSize: 10, marginTop: 14 },

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { categoriesQuery } from '@/src/db/queries/categories';
 import type { CategoryType } from '@/src/db/schema';
+import { categoryGlyph } from '@/src/features/categories/category-icons';
 
 export default function CategoriesScreen() {
   const [type, setType] = useState<CategoryType>('expense');
@@ -55,7 +56,9 @@ export default function CategoriesScreen() {
               accessibilityLabel={`Edit kategori ${category.name}`}
               onPress={() => router.push(`/category/${category.id}`)}
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-              <View style={[styles.colorDot, { backgroundColor: category.color ?? '#64748B' }]} />
+              <View style={[styles.rowIcon, { backgroundColor: `${category.color ?? '#64748B'}1f` }]}>
+                <MaterialCommunityIcons name={categoryGlyph(category)} size={20} color={category.color ?? '#64748B'} />
+              </View>
               <View style={styles.rowCopy}>
                 <Text style={styles.rowName}>{category.name}</Text>
                 <Text style={styles.rowMeta}>{category.isDefault ? 'Kategori bawaan' : 'Kategori buatanmu'}</Text>
@@ -95,7 +98,7 @@ const styles = StyleSheet.create({
   list: { borderRadius: 20, overflow: 'hidden', backgroundColor: '#fff', borderWidth: 1, borderColor: '#e8eae6' },
   row: { minHeight: 66, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e8eae6' },
   pressed: { opacity: 0.65, backgroundColor: '#f4f6f2' },
-  colorDot: { width: 14, height: 14, borderRadius: 7 },
+  rowIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1 },
   rowName: { color: '#2c332f', fontSize: 13, fontWeight: '700' },
   rowMeta: { color: '#929994', fontSize: 9, marginTop: 3 },

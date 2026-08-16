@@ -49,6 +49,7 @@ export function transactionsQuery(filter: TransactionFilter = {}, limit?: number
       categoryId: transactions.categoryId,
       categoryName: categories.name,
       categoryColor: categories.color,
+      categoryIcon: categories.icon,
     })
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))
@@ -299,6 +300,7 @@ export function spendingByCategoryQuery(period: Period) {
       categoryId: transactions.categoryId,
       categoryName: sql<string>`COALESCE(${categories.name}, 'Tanpa kategori')`,
       color: categories.color,
+      icon: categories.icon,
       total: sql<number>`SUM(${transactions.amount})`,
     })
     .from(transactions)
@@ -312,6 +314,27 @@ export function spendingByCategoryQuery(period: Period) {
     )
     .groupBy(transactions.categoryId)
     .orderBy(desc(sql`SUM(${transactions.amount})`));
+}
+
+/**
+ * Pembanding kebiasaan belanja: total pengeluaran + banyaknya HARI yang punya
+ * pengeluaran pada periode itu. Rata-rata sengaja dibagi hari aktif (bukan
+ * panjang periode) supaya user yang mencatat sesekali tidak dianggap boros terus.
+ */
+export function expenseBaselineQuery(period: Period) {
+  return db
+    .select({
+      total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)`,
+      days: sql<number>`COUNT(DISTINCT ${transactions.dateKey})`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.type, 'expense'),
+        gte(transactions.dateKey, period.from),
+        lte(transactions.dateKey, period.to),
+      ),
+    );
 }
 
 /** Tren harian income vs expense — sumber data line chart. Hari kosong tidak muncul. */
